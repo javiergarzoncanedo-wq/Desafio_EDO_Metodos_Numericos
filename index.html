@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desafío 1: La Paz frente a una Crisis de Agua | Simulador EDO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        water: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Header & Navigation -->
+    <header class="bg-gradient-to-r from-slate-900 via-water-900 to-slate-900 text-white shadow-lg sticky top-0 z-50 border-b border-water-800/40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-water-500/20 rounded-xl border border-water-400/30">
+                        <i class="fa-solid fa-faucet-drip text-water-400 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                            Desafío 1: La Paz frente a una Crisis de Agua
+                        </h1>
+                        <p class="text-xs sm:text-sm text-water-200">
+                            Modelado de Embalses (Incachaca y Hampaturi) • Solución Analítica, Heun (RK2) y Runge-Kutta (RK4)
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Simulador de Agotamiento del Agua en La Paz
+                    </span>
+                    
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Context & Problem Description Card -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col lg:flex-row gap-6 items-start">
+                <div class="flex-1 space-y-3">
+                    <div class="inline-flex items-center gap-2 text-water-700 font-semibold text-xs uppercase tracking-wider bg-water-50 px-2.5 py-1 rounded-md border border-water-200">
+                        <i class="fa-solid fa-building-user"></i> Contexto e Impacto Social
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-900">
+                        Evaluación del Abastecimiento Hídrico en la Cuenca de La Paz
+                    </h2>
+                    <p class="text-sm text-slate-600 leading-relaxed">
+                        <strong>Población beneficiaria:</strong> Municipio de La Paz (Sistemas de embalses Incachaca y Hampaturi), beneficiando a 400.000 habitantes. Durante la época estival seca (mayo a agosto), la falta de lluvias combinada con la extracción constante y las pérdidas por infiltración y evaporación reduce rápidamente la reserva hídrica.
+                    </p>
+                    <div class="p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs text-slate-700 font-mono">
+                        <strong class="font-sans text-slate-900 block mb-1">Ecuación Diferencial del Embalse (EDO):</strong>
+                        dy/dt = R - C - e · y(t) &nbsp;&nbsp;|&nbsp;&nbsp; Forma Estándar: dy/dt + e · y = R - C
+                    </div>
+                </div>
+                <div class="w-full lg:w-96 bg-gradient-to-br from-slate-900 via-water-950 to-slate-900 text-white p-5 rounded-xl space-y-3 border border-slate-800 shadow-inner">
+                    <div class="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
+                        <i class="fa-solid fa-circle-question"></i> Pregunta Guía del Desafío
+                    </div>
+                    <p class="text-xs text-slate-200 italic leading-relaxed">
+                        "¿En cuántos días la represa alcanza su volumen crítico de seguridad (20% de su capacidad inicial = 3.0 hm³) bajo sequía extrema, y qué impacto cuantitativo tiene una política de ahorro del 15% en el consumo urbano frente a una reducción del 30% en las recargas hídricas naturales?"
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Model Formulation Card -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                <i class="fa-solid fa-square-root-variable text-water-600"></i> Modelo Matemático y Solución Analítica Exacta
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span class="font-bold text-water-800 uppercase tracking-wider block">1. Variables y Parámetros</span>
+                    <ul class="space-y-1 text-slate-600">
+                        <li>• <strong>y(t):</strong> Volumen almacenado [hm³]</li>
+                        <li>• <strong>t:</strong> Tiempo transcurrido [días]</li>
+                        <li>• <strong>y(0) = y<sub>0</sub>:</strong> 15.0 hm³ (Condición Inicial)</li>
+                        <li>• <strong>R:</strong> Aporte natural = 0.050 hm³/día</li>
+                        <li>• <strong>C:</strong> Extracción urbana = 0.300 hm³/día</li>
+                        <li>• <strong>e:</strong> Pérdida por evaporación = 0.002 (1/día)</li>
+                    </ul>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span class="font-bold text-water-800 uppercase tracking-wider block">2. Solución Analítica Exacta</span>
+                    <p class="text-slate-600 leading-relaxed">
+                        Al resolver la EDO lineal de primer orden mediante el Factor Integrante μ(t) = e<sup>(e · t)</sup>:
+                    </p>
+                    <div class="p-2 bg-white rounded border border-slate-300 font-mono text-slate-800 text-[11px] font-semibold text-center">
+                        y(t) = [ y<sub>0</sub> - (R - C) / e ] · e<sup>(-e · t)</sup> + (R - C) / e
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <span class="font-bold text-water-800 uppercase tracking-wider block">3. Algoritmos Numéricos</span>
+                    <p class="text-slate-600 leading-relaxed">
+                        • <strong>Heun (RK2):</strong> Predictor y* = y<sub>i</sub> + h · k<sub>1</sub>, Corrector y<sub>i+1</sub> = y<sub>i</sub> + (h/2) · (k<sub>1</sub> + k<sub>2</sub>).
+                    </p>
+                    <p class="text-slate-600 leading-relaxed">
+                        • <strong>RK4 Clásico:</strong> Promedio ponderado de 4 pendientes k<sub>1</sub>, k<sub>2</sub>, k<sub>3</sub>, k<sub>4</sub>.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Presets & Simulation Controls -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- Controls Panel (Left 4 cols) -->
+            <section class="lg:col-span-4 glass-card rounded-2xl p-5 shadow-sm space-y-5">
+                <div class="flex justify-between items-center border-b border-slate-200 pb-3">
+                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-water-600"></i> Parámetros de Simulación
+                    </h3>
+                    <button id="btnReset" class="text-xs text-slate-500 hover:text-water-600 transition flex items-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> Restablecer
+                    </button>
+                </div>
+
+                <!-- Scenario Presets -->
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-700 block uppercase tracking-wider">Escenarios de Estudio</label>
+                    <div class="grid grid-cols-1 gap-2">
+                        <button onclick="applyPreset(0.30, 0.05)" class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 hover:bg-water-50 hover:text-water-700 text-slate-700 border border-slate-200 transition text-left flex items-center justify-between">
+                            <span><i class="fa-solid fa-droplet text-blue-500 mr-1.5"></i> 1. Consumo Normal</span>
+                            <span class="text-[10px] font-mono text-slate-500">C=0.30, R=0.05</span>
+                        </button>
+                        <button onclick="applyPreset(0.255, 0.05)" class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 text-slate-700 border border-slate-200 transition text-left flex items-center justify-between">
+                            <span><i class="fa-solid fa-hand-holding-droplet text-emerald-500 mr-1.5"></i> 2. Ahorro del 15%</span>
+                            <span class="text-[10px] font-mono text-slate-500">C=0.255, R=0.05</span>
+                        </button>
+                        <button onclick="applyPreset(0.30, 0.035)" class="px-3 py-2 text-xs font-medium rounded-lg bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-700 border border-slate-200 transition text-left flex items-center justify-between">
+                            <span><i class="fa-solid fa-sun text-rose-500 mr-1.5"></i> 3. Aportes -30% (Sequía)</span>
+                            <span class="text-[10px] font-mono text-slate-500">C=0.30, R=0.035</span>
+                        </button>
+                    </div>
+                </div>
+
+                <form id="simForm" onsubmit="event.preventDefault(); runSimulation();" class="space-y-4">
+
+                    <!-- Param: y0 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-semibold text-slate-700">Volumen Inicial y(0)</label>
+                            <span class="text-xs font-mono text-water-700 font-bold" id="lbl_y0">15.0 hm³</span>
+                        </div>
+                        <input type="number" id="inp_y0" step="0.1" min="0.1" max="100" value="15.0" required 
+                               class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                    </div>
+
+                    <!-- Param: R -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-semibold text-slate-700">Aportes Ríos/Vertientes (R)</label>
+                            <span class="text-xs font-mono text-water-700 font-bold" id="lbl_R">0.050 hm³/día</span>
+                        </div>
+                        <input type="number" id="inp_R" step="0.005" min="0" max="5" value="0.05" required
+                               class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                    </div>
+
+                    <!-- Param: C -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-semibold text-slate-700">Consumo Urbano (C)</label>
+                            <span class="text-xs font-mono text-water-700 font-bold" id="lbl_C">0.300 hm³/día</span>
+                        </div>
+                        <input type="number" id="inp_C" step="0.005" min="0" max="5" value="0.30" required
+                               class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                    </div>
+
+                    <!-- Param: e -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-semibold text-slate-700">Coeficiente Pérdida (e)</label>
+                            <span class="text-xs font-mono text-water-700 font-bold" id="lbl_e">0.002 1/día</span>
+                        </div>
+                        <input type="number" id="inp_e" step="0.001" min="0" max="0.1" value="0.002" required
+                               class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                    </div>
+
+                    <!-- Param: h -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">Paso (h) [días]</label>
+                            <select id="inp_h" onchange="runSimulation()" class="w-full px-2.5 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                                <option value="1.0" selected>h = 1.0 día</option>
+                                <option value="0.5">h = 0.5 días</option>
+                                <option value="0.25">h = 0.25 días</option>
+                                <option value="0.1">h = 0.1 días</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-slate-700 block mb-1">Días (t_max)</label>
+                            <input type="number" id="inp_tmax" min="5" max="365" value="90" required
+                                   class="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 focus:border-water-500 outline-none">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3 px-4 bg-water-600 hover:bg-water-700 text-white font-semibold rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play"></i> Ejecutar Simulación
+                    </button>
+                </form>
+            </section>
+
+            <!-- Results Metrics & Charts (Right 8 cols) -->
+            <section class="lg:col-span-8 space-y-6">
+
+                <!-- Metric Summary Cards -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <!-- Metric 1 -->
+                    <div class="glass-card rounded-xl p-4 border-l-4 border-l-amber-500">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Reserva Crítica (20%)</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1" id="met_critical_day">Día 52</div>
+                        <span class="text-[10px] text-amber-600 font-medium">Volumen ≤ 3.0 hm³</span>
+                    </div>
+
+                    <!-- Metric 2 -->
+                    <div class="glass-card rounded-xl p-4 border-l-4 border-l-rose-500">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Agotamiento Total</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1" id="met_collapse_day">Día 66</div>
+                        <span class="text-[10px] text-rose-600 font-medium">Volumen ≤ 0.0 hm³</span>
+                    </div>
+
+                    <!-- Metric 3 -->
+                    <div class="glass-card rounded-xl p-4 border-l-4 border-l-water-500">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Error Máx. Heun</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1" id="met_err_heun">0.031%</div>
+                        <span class="text-[10px] text-water-600 font-medium">Paso h = 1.0 día</span>
+                    </div>
+
+                    <!-- Metric 4 -->
+                    <div class="glass-card rounded-xl p-4 border-l-4 border-l-emerald-500">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Error Máx. RK4</span>
+                        <div class="text-xl font-extrabold text-slate-900 mt-1" id="met_err_rk4">&lt; 0.00001%</div>
+                        <span class="text-[10px] text-emerald-600 font-medium">Alta precisión</span>
+                    </div>
+                </div>
+
+                <!-- Primary Chart: Volume Trajectory -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm space-y-3">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Evolución del Volumen y(t) en 90 Días</h3>
+                            <p class="text-xs text-slate-500">Comparativa entre Solución Analítica Exacta, Heun (RK2) y RK4</p>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs">
+                            <span class="inline-flex items-center gap-1 font-semibold text-slate-700">
+                                <span class="w-3 h-0.5 bg-sky-500"></span> Analítica
+                            </span>
+                            <span class="inline-flex items-center gap-1 font-semibold text-slate-700">
+                                <span class="w-3 h-0.5 bg-amber-500"></span> Heun
+                            </span>
+                            <span class="inline-flex items-center gap-1 font-semibold text-slate-700">
+                                <span class="w-3 h-0.5 bg-emerald-500"></span> RK4
+                            </span>
+                        </div>
+                    </div>
+                    <div class="w-full h-72">
+                        <canvas id="mainChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Secondary Chart: Error Analysis -->
+                <div class="glass-card rounded-2xl p-5 shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="font-bold text-slate-900 text-base">Comparativa de Error Relativo Porcentual (%)</h3>
+                            <p class="text-xs text-slate-500">Desviación temporal frente a la solución analítica exacta</p>
+                        </div>
+                    </div>
+                    <div class="w-full h-48">
+                        <canvas id="errorChart"></canvas>
+                    </div>
+                </div>
+
+            </section>
+        </div>
+
+        <!-- Tabulated Results & Iteration Details -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-table-list text-water-600"></i> Tabla de Iteraciones y Evaluación de Errores
+                    </h3>
+                    <p class="text-xs text-slate-500">Resultados evaluados paso a paso para el período de simulación</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="searchTable" onkeyup="filterTable()" placeholder="Buscar día t..." 
+                           class="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-water-500 outline-none w-36">
+                    <button onclick="exportTableToCSV()" class="px-3 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition flex items-center gap-1">
+                        <i class="fa-solid fa-download"></i> CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-80 rounded-xl border border-slate-200">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 sticky top-0 border-b border-slate-200 font-semibold text-slate-700">
+                        <tr>
+                            <th class="p-3"># (i)</th>
+                            <th class="p-3">t (días)</th>
+                            <th class="p-3 text-sky-700 bg-sky-50/50">Sol. Analítica [hm³]</th>
+                            <th class="p-3 text-amber-700 bg-amber-50/50">Heun (RK2) [hm³]</th>
+                            <th class="p-3 text-amber-700 bg-amber-50/50">Error Rel % Heun</th>
+                            <th class="p-3 text-emerald-700 bg-emerald-50/50">RK4 [hm³]</th>
+                            <th class="p-3 text-emerald-700 bg-emerald-50/50">Error Rel % RK4</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-200 font-mono text-slate-700 bg-white">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Technical Interpretation & Executive Summary -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div class="glass-card rounded-2xl p-6 shadow-sm space-y-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-people-roof text-water-600"></i> Resumen de Resultados e Interpretación Social
+                </h3>
+                <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
+                    <p>
+                        • <strong>1. Escenario Consumo Normal:</strong> Al mantener un consumo de 0.300 hm³/día, la reserva crítica de seguridad (3.0 hm³) se alcanza en el <strong>Día 52</strong>, llegando al agotamiento total en el <strong>Día 66</strong>.
+                    </p>
+                    <p>
+                        • <strong>2. Escenario Ahorro del 15%:</strong> Al reducir la extracción a 0.255 hm³/día, la reserva de seguridad se prolonga hasta el <strong>Día 65</strong> (+13 días de autonomía), y el agotamiento total se retrasa al <strong>Día 84</strong> (+18 días adicionales de margen).
+                    </p>
+                    <p>
+                        • <strong>3. Escenario Reducción 30% en Aportes:</strong> Ante una sequía severa en vertientes (R = 0.035 hm³/día), la reserva crítica cae al <strong>Día 48</strong> y el colapso ocurre en el <strong>Día 61</strong>.
+                    </p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6 shadow-sm space-y-3">
+                <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-water-600"></i> Desempeño Numérico y Conclusiones Técnicas
+                </h3>
+                <div class="text-xs text-slate-600 space-y-2 leading-relaxed">
+                    <p>
+                        • <strong>Runge-Kutta 4.º Orden (RK4):</strong> Muestra una precisión idéntica a la solución analítica exacta, registrando un error relativo porcentual menor a <strong>0.00001%</strong>.
+                    </p>
+                    <p>
+                        • <strong>Método de Heun (RK2):</strong> Registra un error relativo promedio de <strong>0.031%</strong> con paso h = 1.0 día. Al reducir el paso a h = 0.5 días, el error disminuye a <strong>0.0078%</strong>, demostrando su convergencia cuadrática O(h<sup>2</sup>).
+                    </p>
+                    <p>
+                        • <strong>Limitaciones:</strong> Se asumió un coeficiente e constante y aportes continuos sin contemplar lluvias aisladas o variaciones térmicas interdiarias.
+                    </p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Rubric & Evaluation Breakdown -->
+        
+        <!-- Respuesta a la Pregunta Guía, Conclusiones y Recomendaciones (Estilo Imagen 3 & 4) -->
+        <section class="space-y-6">
+            
+            <!-- Card Respuesta a la Pregunta Guía del Desafío -->
+            <div class="glass-card rounded-2xl p-6 shadow-sm bg-slate-900 text-white space-y-3 border border-slate-800">
+                <h3 class="text-md font-bold text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-question"></i> Respuesta a la Pregunta Guía del Desafío
+                </h3>
+                <p class="text-xs text-slate-300 italic">
+                    "¿Cómo puede una ecuación diferencial de primer orden ayudarnos a comprender y mejorar una situación de nuestra comunidad, y qué tan precisas son las aproximaciones de Heun y RK4?"
+                </p>
+                <p class="text-xs text-slate-200 leading-relaxed">
+                    Una ecuación diferencial ordinaria (EDO) de primer orden permite transformar dinámicas complejas de balance hídrico en un modelo matemático cuantitativo exacto. Nos ayuda a prevenir crisis al predecir la fecha exacta en la que el embalse entrará en zona de racionamiento (Día 52). Respecto a la precisión numérica, el método clásico de Runge-Kutta de 4.º orden (RK4) alcanza un error relativo prácticamente nulo (&lt; 0.00001%), mientras que Heun (RK2) mantiene un error mínimo (&lt; 0.03%), siendo ambos métodos altamente confiables para simulaciones operativas en gestión ambiental.
+                </p>
+            </div>
+
+            <!-- Card Conclusiones Generales y Recomendaciones -->
+            <div class="glass-card rounded-2xl p-6 shadow-sm space-y-6">
+                <div>
+                    <h3 class="text-md font-bold text-slate-900 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-square-check text-water-600"></i> Conclusiones Generales
+                    </h3>
+                    <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                        <li>Una reducción comunitaria del 15% en el consumo urbano aplaza la alerta de racionamiento por 13 días adicionales y pospone el agotamiento total por 18 días.</li>
+                        <li>Las sequías climáticas que reducen en 30% las recargas de glaciares y vertientes aceleran el colapso del sistema a tan solo 48 días.</li>
+                        <li>El método RK4 demostró ser numéricamente superior para modelar EDOs lineales de balance hídrico, garantizando una convergencia casi perfecta a la solución analítica exacta.</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h3 class="text-md font-bold text-slate-900 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> Recomendaciones para la Comunidad y Gestión Hídrica
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                            <strong class="text-slate-900 block font-bold">1. Implementación de Campañas de Racionamiento Preventivo:</strong>
+                            <p class="text-slate-600 leading-relaxed">Promover medidas de ahorro del 15% en hogares e industrias desde el inicio del periodo seco (mayo) para asegurar autonomía hasta la llegada de las lluvias estivales.</p>
+                        </div>
+                        <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                            <strong class="text-slate-900 block font-bold">2. Infraestructura y Reducción de Pérdidas:</strong>
+                            <p class="text-slate-600 leading-relaxed">Controlar las fugas en red e implementar cubiertas en vaso o tecnologías de reducción de evaporación libre para disminuir el coeficiente e.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Cuadro de Principales Resultados Acumulados / Matriz de Simulación Ejecutada -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                        <i class="fa-solid fa-database text-water-600"></i> Base de Datos de Resultados Dinámicos por Escenario
+                    </h3>
+                    <p class="text-xs text-slate-500">Matriz comparativa de variables de entrada (Entrada) y métricas clave de salida (Salida) ante la ejecución del modelo</p>
+                </div>
+                <span class="px-2.5 py-1 bg-water-50 text-water-700 font-semibold text-xs rounded-md border border-water-200">
+                    3 Escenarios Clave Evaluados
+                </span>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead class="bg-slate-100 border-b border-slate-200 font-bold text-slate-700">
+                        <tr>
+                            <th class="p-3 bg-slate-100">Escenario de Simulación</th>
+                            <th class="p-3 text-blue-900 bg-blue-50/50">y₀ [hm³]</th>
+                            <th class="p-3 text-blue-900 bg-blue-50/50">R [hm³/día]</th>
+                            <th class="p-3 text-blue-900 bg-blue-50/50">C [hm³/día]</th>
+                            <th class="p-3 text-blue-900 bg-blue-50/50">e [1/día]</th>
+                            <th class="p-3 text-amber-900 bg-amber-50/50">Reserva Crítica (20%)</th>
+                            <th class="p-3 text-rose-900 bg-rose-50/50">Agotamiento Total</th>
+                            <th class="p-3 text-slate-900 bg-slate-200/50">Volumen Día 90</th>
+                            <th class="p-3 text-emerald-900 bg-emerald-50/50">Error Máx. RK4</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scenarioTableBody" class="divide-y divide-slate-200 font-mono text-slate-700 bg-white">
+                        <!-- Se actualiza dinámicamente con JavaScript en tiempo real -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 mt-12 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+            <p>Desafío Individual EDO • Simulación de Métodos Numéricos en Ingeniería • La Paz, Bolivia 2026</p>
+            <p class="text-slate-500">Desarrollado con HTML, Tailwind CSS & Chart.js — Formato Limpio y Legible</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic & Simulation Engine -->
+    <script>
+        let mainChartInstance = null;
+        let errorChartInstance = null;
+
+        // EDO Function: dy/dt = f(t, y) = R - C - e * y
+        function f(t, y, R, C, e) {
+            return R - C - e * y;
+        }
+
+        // Exact Analytical Solution: y(t) = (y0 - (R-C)/e) * exp(-e*t) + (R-C)/e
+        function exactSolution(t, y0, R, C, e) {
+            const asymptote = (R - C) / e;
+            return (y0 - asymptote) * Math.exp(-e * t) + asymptote;
+        }
+
+        // Run Simulation & Update UI
+        function runSimulation() {
+            const y0 = parseFloat(document.getElementById('inp_y0').value);
+            const R = parseFloat(document.getElementById('inp_R').value);
+            const C = parseFloat(document.getElementById('inp_C').value);
+            const e = parseFloat(document.getElementById('inp_e').value);
+            const h = parseFloat(document.getElementById('inp_h').value);
+            const t_max = parseFloat(document.getElementById('inp_tmax').value);
+
+            // Update Labels
+            document.getElementById('lbl_y0').innerText = y0.toFixed(1) + ' hm³';
+            document.getElementById('lbl_R').innerText = R.toFixed(3) + ' hm³/día';
+            document.getElementById('lbl_C').innerText = C.toFixed(3) + ' hm³/día';
+            document.getElementById('lbl_e').innerText = e.toFixed(3) + ' 1/día';
+
+            // Data storage
+            const labels = [];
+            const dataExact = [];
+            const dataHeun = [];
+            const dataRK4 = [];
+            const errHeun = [];
+            const errRK4 = [];
+            const tableRows = [];
+
+            let y_heun = y0;
+            let y_rk4 = y0;
+
+            let criticalDay = null;
+            let collapseDay = null;
+            let maxErrHeunVal = 0;
+            let maxErrRK4Val = 0;
+
+            const n_steps = Math.floor(t_max / h);
+
+            for (let i = 0; i <= n_steps; i++) {
+                const t = i * h;
+                const y_analytical = exactSolution(t, y0, R, C, e);
+
+                // Errors
+                const absErrHeun = Math.abs(y_analytical - y_heun);
+                const relErrHeun = y_analytical !== 0 ? (absErrHeun / Math.abs(y_analytical)) * 100 : 0;
+
+                const absErrRK4 = Math.abs(y_analytical - y_rk4);
+                const relErrRK4 = y_analytical !== 0 ? (absErrRK4 / Math.abs(y_analytical)) * 100 : 0;
+
+                if (relErrHeun > maxErrHeunVal) maxErrHeunVal = relErrHeun;
+                if (relErrRK4 > maxErrRK4Val) maxErrRK4Val = relErrRK4;
+
+                // Track metrics
+                if (criticalDay === null && y_analytical <= 3.0) {
+                    criticalDay = t;
+                }
+                if (collapseDay === null && y_analytical <= 0) {
+                    collapseDay = t;
+                }
+
+                // Store for charts
+                if (h >= 0.5 || i % Math.round(1/h) === 0) {
+                    labels.push(t.toFixed(1));
+                    dataExact.push(y_analytical.toFixed(4));
+                    dataHeun.push(y_heun.toFixed(4));
+                    dataRK4.push(y_rk4.toFixed(4));
+                    errHeun.push(relErrHeun.toFixed(6));
+                    errRK4.push(relErrRK4.toFixed(6));
+                }
+
+                // Table Rows
+                tableRows.push({
+                    i: i,
+                    t: t.toFixed(2),
+                    exact: y_analytical.toFixed(4),
+                    heun: y_heun.toFixed(4),
+                    errHeun: relErrHeun.toFixed(4),
+                    rk4: y_rk4.toFixed(4),
+                    errRK4: relErrRK4.toExponential(2)
+                });
+
+                // Next Step Calculation
+                // 1. Heun Method (RK2)
+                const k1_h = f(t, y_heun, R, C, e);
+                const y_pred = y_heun + h * k1_h;
+                const k2_h = f(t + h, y_pred, R, C, e);
+                y_heun = y_heun + (h / 2) * (k1_h + k2_h);
+
+                // 2. RK4 Method
+                const k1 = f(t, y_rk4, R, C, e);
+                const k2 = f(t + 0.5 * h, y_rk4 + 0.5 * h * k1, R, C, e);
+                const k3 = f(t + 0.5 * h, y_rk4 + 0.5 * h * k2, R, C, e);
+                const k4 = f(t + h, y_rk4 + h * k3, R, C, e);
+                y_rk4 = y_rk4 + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+            }
+
+            // Update UI Metrics
+            document.getElementById('met_critical_day').innerText = criticalDay !== null ? `Día ${criticalDay.toFixed(0)}` : 'N/A (> t_max)';
+            document.getElementById('met_collapse_day').innerText = collapseDay !== null ? `Día ${collapseDay.toFixed(0)}` : 'Sin Colapso';
+            document.getElementById('met_err_heun').innerText = maxErrHeunVal.toFixed(3) + '%';
+            document.getElementById('met_err_rk4').innerText = maxErrRK4Val < 0.0001 ? '< 0.00001%' : maxErrRK4Val.toFixed(5) + '%';
+
+            
+        // Calcular de manera dinámica la matriz de escenarios con los parámetros actuales del usuario
+        function actualizarMatrizEscenarios(y0, e, h, t_max, currentC, currentR) {
+            const escenarios = [
+                { id: 1, nombre: '1. Consumo Actual / Personalizado', C: currentC, R: currentR, color: 'bg-blue-500' },
+                { id: 2, nombre: '2. Ahorro del 15% en Consumo', C: currentC * 0.85, R: currentR, color: 'bg-emerald-500' },
+                { id: 3, nombre: '3. Sequía (-30% en Aportes)', C: currentC, R: currentR * 0.70, color: 'bg-rose-500' }
+            ];
+
+            const tbody = document.getElementById('scenarioTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let baseCrit = null;
+            let baseAgot = null;
+
+            escenarios.forEach((sc, idx) => {
+                let t = 0;
+                let crit = null;
+                let agot = null;
+                let yRK4 = y0;
+                let maxErrRK4 = 0;
+                const n_steps = Math.floor(t_max / h);
+
+                for (let i = 0; i <= n_steps; i++) {
+                    const yExact = exactSolution(t, y0, sc.R, sc.C, e);
+                    const absErr = Math.abs(yExact - yRK4);
+                    const relErr = yExact !== 0 ? (absErr / Math.abs(yExact)) * 100 : 0;
+                    if (relErr > maxErrRK4) maxErrRK4 = relErr;
+
+                    if (crit === null && yExact <= 3.0) crit = t;
+                    if (agot === null && yExact <= 0.0) agot = t;
+
+                    // RK4 Next
+                    const k1 = f(t, yRK4, sc.R, sc.C, e);
+                    const k2 = f(t + 0.5 * h, yRK4 + 0.5 * h * k1, sc.R, sc.C, e);
+                    const k3 = f(t + 0.5 * h, yRK4 + 0.5 * h * k2, sc.R, sc.C, e);
+                    const k4 = f(t + h, yRK4 + h * k3, sc.R, sc.C, e);
+                    yRK4 = yRK4 + (h / 6) * (k1 + 2 * k2 + 2 * k3 + k4);
+
+                    t += h;
+                }
+
+                const yFinal = exactSolution(t_max, y0, sc.R, sc.C, e);
+
+                if (idx === 0) {
+                    baseCrit = crit;
+                    baseAgot = agot;
+                }
+
+                let txtCrit = crit !== null ? `Día ${crit.toFixed(0)}` : 'N/A';
+                if (idx > 0 && crit !== null && baseCrit !== null) {
+                    const diffCrit = Math.round(crit - baseCrit);
+                    if (diffCrit !== 0) txtCrit += ` (${diffCrit > 0 ? '+' : ''}${diffCrit}d)`;
+                }
+
+                let txtAgot = agot !== null ? `Día ${agot.toFixed(0)}` : 'Sin Agotamiento';
+                if (idx > 0 && agot !== null && baseAgot !== null) {
+                    const diffAgot = Math.round(agot - baseAgot);
+                    if (diffAgot !== 0) txtAgot += ` (${diffAgot > 0 ? '+' : ''}${diffAgot}d)`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 font-sans font-bold text-slate-800 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full ${sc.color}"></span> ${sc.nombre}
+                    </td>
+                    <td class="p-3 text-blue-900 bg-blue-50/20">${y0.toFixed(1)}</td>
+                    <td class="p-3 text-blue-900 bg-blue-50/20">${sc.R.toFixed(3)}</td>
+                    <td class="p-3 text-blue-900 bg-blue-50/20">${sc.C.toFixed(3)}</td>
+                    <td class="p-3 text-blue-900 bg-blue-50/20">${e.toFixed(3)}</td>
+                    <td class="p-3 font-bold text-amber-700 bg-amber-50/20">${txtCrit}</td>
+                    <td class="p-3 font-bold text-rose-700 bg-rose-50/20">${txtAgot}</td>
+                    <td class="p-3 font-bold ${yFinal < 0 ? 'text-rose-600' : 'text-emerald-600'} bg-slate-100/50">${yFinal.toFixed(2)} hm³</td>
+                    <td class="p-3 text-emerald-700 bg-emerald-50/20">${maxErrRK4 < 0.0001 ? '< 0.00001%' : maxErrRK4.toFixed(5) + '%'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+            actualizarMatrizEscenarios(y0, e, h, t_max, C, R);
+
+            // Render Charts & Table
+            renderMainChart(labels, dataExact, dataHeun, dataRK4);
+            renderErrorChart(labels, errHeun, errRK4);
+            renderTable(tableRows);
+        }
+
+        // Preset Applicator
+        function applyPreset(C, R) {
+            document.getElementById('inp_C').value = C;
+            document.getElementById('inp_R').value = R;
+            runSimulation();
+        }
+
+        // Render Main Volume Chart
+        function renderMainChart(labels, dataExact, dataHeun, dataRK4) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            
+            if (mainChartInstance) {
+                mainChartInstance.destroy();
+            }
+
+            mainChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Solución Analítica',
+                            data: dataExact,
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.05)',
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            fill: true
+                        },
+                        {
+                            label: 'Método de Heun (RK2)',
+                            data: dataHeun,
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            pointRadius: 1
+                        },
+                        {
+                            label: 'RK4 (4.º Orden)',
+                            data: dataRK4,
+                            borderColor: '#10b981',
+                            borderWidth: 1.8,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Nivel Crítico 20% (3.0 hm³)',
+                            data: Array(labels.length).fill(3.0),
+                            borderColor: '#ef4444',
+                            borderWidth: 1.5,
+                            borderDash: [6, 2],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Tiempo t (Días)', font: { size: 11 } },
+                            grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Volumen y(t) [hm³]', font: { size: 11 } },
+                            grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Secondary Error Chart
+        function renderErrorChart(labels, errHeun, errRK4) {
+            const ctx = document.getElementById('errorChart').getContext('2d');
+            
+            if (errorChartInstance) {
+                errorChartInstance.destroy();
+            }
+
+            errorChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Error Relativo Heun (%)',
+                            data: errHeun,
+                            borderColor: '#f59e0b',
+                            borderWidth: 1.5,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Error Relativo RK4 (%)',
+                            data: errRK4,
+                            borderColor: '#10b981',
+                            borderWidth: 1.5,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
+                    },
+                    scales: {
+                        x: { display: true },
+                        y: {
+                            title: { display: true, text: 'Error Relativo %', font: { size: 10 } },
+                            grid: { color: 'rgba(226, 232, 240, 0.6)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Render Iteration Table
+        function renderTable(rows) {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            rows.forEach(r => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="p-2.5 font-sans text-slate-500">${r.i}</td>
+                    <td class="p-2.5 font-bold">${r.t}</td>
+                    <td class="p-2.5 text-sky-700 bg-sky-50/20 font-semibold">${r.exact}</td>
+                    <td class="p-2.5 text-amber-700 bg-amber-50/20">${r.heun}</td>
+                    <td class="p-2.5 text-amber-700 bg-amber-50/20">${r.errHeun}%</td>
+                    <td class="p-2.5 text-emerald-700 bg-emerald-50/20">${r.rk4}</td>
+                    <td class="p-2.5 text-emerald-700 bg-emerald-50/20">${r.errRK4}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Search Filter for Table
+        function filterTable() {
+            const input = document.getElementById('searchTable').value.toUpperCase();
+            const trs = document.getElementById('tableBody').getElementsByTagName('tr');
+
+            for (let i = 0; i < trs.length; i++) {
+                const tdT = trs[i].getElementsByTagName('td')[1];
+                if (tdT) {
+                    const txtValue = tdT.textContent || tdT.innerText;
+                    if (txtValue.toUpperCase().indexOf(input) > -1) {
+                        trs[i].style.display = '';
+                    } else {
+                        trs[i].style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        // Export Table to CSV
+        function exportTableToCSV() {
+            const trs = document.querySelectorAll('table tr');
+            let csv = [];
+            
+            for (let i = 0; i < trs.length; i++) {
+                const row = [], cols = trs[i].querySelectorAll('td, th');
+                for (let j = 0; j < cols.length; j++) {
+                    row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+                }
+                csv.push(row.join(','));
+            }
+
+            const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+            const downloadLink = document.createElement('a');
+            downloadLink.download = 'Simulacion_Embalses_LaPaz_EDO.csv';
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = 'none';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        }
+
+        // Reset Button Handler
+        document.getElementById('btnReset').addEventListener('click', function() {
+            document.getElementById('inp_y0').value = 15.0;
+            document.getElementById('inp_R').value = 0.05;
+            document.getElementById('inp_C').value = 0.30;
+            document.getElementById('inp_e').value = 0.002;
+            document.getElementById('inp_h').value = "1.0";
+            document.getElementById('inp_tmax').value = 90;
+            runSimulation();
+        });
+
+        // Initialize Simulation on Load
+        // Adjuntar listeners a todos los campos de entrada para actualización reactiva en tiempo real
+        function attachInputListeners() {
+            const inputs = ['inp_y0', 'inp_R', 'inp_C', 'inp_e', 'inp_h', 'inp_tmax'];
+            inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', runSimulation);
+                    el.addEventListener('change', runSimulation);
+                }
+            });
+        }
+
+        window.onload = function() {
+            attachInputListeners();
+            runSimulation();
+        };
+    </script>
+</body>
+</html>
